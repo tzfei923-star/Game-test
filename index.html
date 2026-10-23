@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#161329"><title>心動視線 · Heart Rush</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#161329;color:#fff4ec;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}main{max-width:680px;margin:auto;padding:22px 18px max(18px,env(safe-area-inset-bottom))}.eyebrow{font-size:11px;letter-spacing:4px;color:#f1abbd}header{display:flex;align-items:center;justify-content:space-between}h1{font-size:30px;margin:7px 0 0;letter-spacing:2px}header span{font-size:12px;background:#302640;padding:8px 12px;border-radius:20px;color:#e5bdce}.intro{font-size:13px;color:#bdb2ce;line-height:1.7;margin:15px 0}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}.stat{background:#272139;border:1px solid #3b304b;border-radius:15px;padding:10px 13px}.stat small{display:block;color:#b9a9c7;font-size:10px;letter-spacing:1px}.stat strong{font-size:23px;font-variant-numeric:tabular-nums}.stat em{font-style:normal;font-size:11px;color:#b9a9c7}.stage{position:relative;overflow:hidden;border-radius:22px;border:1px solid #62506f;box-shadow:0 20px 65px #09061580;background:#e7c6ce}canvas{display:block;width:100%;aspect-ratio:600/440;touch-action:none;user-select:none}.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;background:#21182bea;backdrop-filter:blur(5px)}.overlay[hidden]{display:none}.badge{font-size:45px;color:#ff91b4}.overlay h2{font-size:26px;margin:12px 0}.overlay p{font-size:13px;line-height:1.9;color:#d4c4db;margin:0 0 20px;max-width:290px}button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none}.primary{background:#ff9cba;color:#321e32;border-radius:14px;padding:14px 30px;font-weight:800;box-shadow:0 5px 0 #bc6388}.energy{margin:16px 1px 12px;display:flex;align-items:center;gap:10px;font-size:11px;color:#d3c0db}.track{flex:1;background:#382c46;border-radius:8px;height:7px;overflow:hidden}.fill{height:100%;width:100%;background:linear-gradient(90deg,#a890f0,#ff9cba);border-radius:8px}.controls{display:flex;gap:10px;align-items:center}.move{background:#352a46;border:1px solid #554064;border-radius:17px;font-size:23px;width:76px;height:58px}.move:active{background:#60446c}.tip{flex:1;font-size:11px;color:#c8b2d2;line-height:1.7;text-align:center}.pause{background:transparent;border:1px solid #554064;padding:9px 12px;border-radius:12px;font-size:12px}footer{margin-top:18px;text-align:center;font-size:10px;color:#8f7d9f;letter-spacing:1px}button:focus-visible{outline:3px solid #fff;outline-offset:3px}@media(max-width:380px){main{padding:14px 12px}.intro{font-size:12px}h1{font-size:26px}.move{width:62px}}
+</style>
+</head>
+<body><main>
+<header><div><div class="eyebrow">HEART RUSH / 01</div><h1>心動視線<span style="background:none;padding:0;color:#ff9cba;font-size:25px"> ♡</span></h1></div><span>園遊會篇</span></header>
+<p class="intro">人海裡，讓心動發生。<br>在 60 秒內，用你的魅力邀請大家來到攤位！</p>
+<section class="stats" aria-label="遊戲資訊"><div class="stat"><small>心動分數</small><strong id="score">0</strong></div><div class="stat"><small>剩餘時間</small><strong id="time">60</strong> <em>秒</em></div><div class="stat"><small>最佳紀錄</small><strong id="best">0</strong></div></section>
+<div class="stage"><canvas id="game" width="600" height="440" aria-label="園遊會遊戲場景，按住人物邀請。使用下方按鈕左右移動。"></canvas><div id="overlay" class="overlay"><div class="badge">♡</div><h2 id="title">今天，誰會為你心動？</h2><p id="description">按住人物，送出心動視線。<br>好感滿格即可邀請成功，獲得 100 分。<br>靠近目標、留意紫色對手，魅力不足時歇一下！</p><button id="start" class="primary">開始心動 →</button></div></div>
+<div class="energy"><span>✦ 魅力值</span><div class="track" role="progressbar" aria-label="魅力值" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" id="energyTrack"><div class="fill" id="energy"></div></div><span id="energyText">100%</span></div>
+<div class="controls"><button class="move" id="left" aria-label="向左移動">←</button><button class="move" id="right" aria-label="向右移動">→</button><div class="tip" id="hint" aria-live="polite">按住人物發射愛心<br>雙手操作：移動＋鎖定</div><button id="pause" class="pause">暫停</button></div>
+<footer>原創小遊戲 · 手機觸控 / 電腦方向鍵＋滑鼠</footer>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d');
+let state='ready',remaining=60,score=0,energy=100,player=300,people=[],particles=[],selected=null,targetPointer=null,elapsed=0,spawnTimer=0,exhausted=false;
+const movePointers=new Map(),keys=new Set();let best=0;
+try{best=Number(localStorage.getItem('heart-rush-best'))||0}catch{}$('best').textContent=best;
+const names=['小晴','阿澄','小悠','子安','小葵','阿樂'];const colors=['#6b99ac','#dc8b6e','#779d7e','#c17d9b','#a28ac0'];
+function populate(){people=Array.from({length:4},(_,i)=>({x:100+i*135,y:220+(i%2)*28,progress:0,rival:0,dir:i%2?1:-1,speed:8+Math.random()*8,name:names[i],color:colors[i]}))}
+function clearInput(){selected=null;targetPointer=null;movePointers.clear();keys.clear()}
+function start(){state='playing';remaining=60;score=0;energy=100;player=300;elapsed=0;spawnTimer=0;exhausted=false;particles=[];clearInput();populate();$('overlay').hidden=true;$('pause').textContent='暫停';setHint('按住人物發射愛心');updateHud()}
+function setHint(t){if($('hint').textContent!==t)$('hint').textContent=t}
+function show(title,description,label){$('title').textContent=title;$('description').textContent=description;$('start').textContent=label;$('overlay').hidden=false}
+function pause(){if(state!=='playing')return;state='paused';clearInput();show('讓心動休息一下','時間已暫停，準備好了就繼續吧。','繼續遊戲 →');$('pause').textContent='繼續'}
+function resume(){state='playing';$('overlay').hidden=true;$('pause').textContent='暫停'}
+function finish(){state='over';clearInput();best=Math.max(best,score);try{localStorage.setItem('heart-rush-best',String(best))}catch{}$('best').textContent=best;show(score>=1000?'全場焦點，就是你！':'心動，已經悄悄發生',`成功邀請 ${score/100} 人，獲得 ${score} 分！最佳紀錄 ${best} 分。再挑戰一次，試著搶在對手前面吧。`,'再玩一次 →')}
+$('start').onclick=()=>state==='paused'?resume():start();$('pause').onclick=()=>state==='paused'?resume():pause();
+for(const [id,dir] of [['left',-1],['right',1]]){$(id).addEventListener('pointerdown',e=>{e.preventDefault();if(state!=='playing')return;$(id).setPointerCapture(e.pointerId);movePointers.set(e.pointerId,dir)});for(const type of ['pointerup','pointercancel','lostpointercapture'])$(id).addEventListener(type,e=>movePointers.delete(e.pointerId))}
+canvas.addEventListener('pointerdown',e=>{e.preventDefault();if(state!=='playing'||targetPointer!==null)return;const r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)*600/r.width,y=(e.clientY-r.top)*440/r.height;let nearest=null,dist=Infinity;for(const p of people){const d=Math.hypot(p.x-x,p.y-25-y);if(d<55&&d<dist){nearest=p;dist=d}}if(nearest){selected=nearest;targetPointer=e.pointerId;canvas.setPointerCapture(e.pointerId)}});
+for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(type,e=>{if(e.pointerId===targetPointer){selected=null;targetPointer=null}});
+window.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','a','d'].includes(e.key)){e.preventDefault();if(state==='playing')keys.add(e.key)}if(e.key==='Escape')state==='playing'?pause():state==='paused'?resume():null});window.addEventListener('keyup',e=>keys.delete(e.key));window.addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
+function updateHud(){$('score').textContent=score;$('time').textContent=Math.ceil(remaining);$('energy').style.width=energy+'%';$('energyText').textContent=Math.round(energy)+'%';$('energyTrack').setAttribute('aria-valuenow',Math.round(energy))}
+function burst(p,text,color){particles.push({x:p.x,y:p.y-65,life:1.4,text,color})}
+function step(dt){if(state!=='playing')return;remaining=Math.max(0,remaining-dt);elapsed+=dt;const dirs=[...movePointers.values()];const direction=(dirs.includes(1)||keys.has('ArrowRight')||keys.has('d')?1:0)-(dirs.includes(-1)||keys.has('ArrowLeft')||keys.has('a')?1:0);player=Math.max(30,Math.min(570,player+direction*185*dt));
+if(exhausted&&energy>=30)exhausted=false;const inRange=selected&&Math.abs(selected.x-player)<190,active=selected&&inRange&&!exhausted&&energy>0;
+energy=Math.max(0,Math.min(100,energy+(active?-19:25)*dt));if(energy<=0)exhausted=true;
+setHint(exhausted?'魅力恢復中，稍等一下…':selected&&!inRange?'太遠了！靠近目標再發射':active?'心動連線中… 持續按住！':'按住人物發射愛心');
+const rivalX=300+Math.sin(elapsed*.65)*225;
+for(const p of [...people]){if(p!==selected){p.x+=p.dir*p.speed*dt;if(p.x<45||p.x>555)p.dir*=-1}if(p===selected&&active)p.progress+=dt*38;else p.progress=Math.max(0,p.progress-dt*7);
+if(elapsed>4&&Math.abs(p.x-rivalX)<80)p.rival+=dt*(p===selected&&active?11:16);else p.rival=Math.max(0,p.rival-dt*8);
+if(p.progress>=100||p.rival>=100){const success=p.progress>=100;if(success)score+=100;burst(p,success?'♡ +100':'對手搶先了',success?'#9c265b':'#7250a0');people.splice(people.indexOf(p),1);if(selected===p)selected=null}}
+spawnTimer+=dt;if(people.length<4&&spawnTimer>1.1){spawnTimer=0;people.push({x:45+Math.random()*510,y:220+Math.random()*28,progress:0,rival:0,dir:Math.random()>.5?1:-1,speed:10,name:names[Math.floor(Math.random()*names.length)],color:colors[Math.floor(Math.random()*colors.length)]})}
+particles=particles.filter(p=>(p.life-=dt)>0);for(const p of particles)p.y-=dt*24;updateHud();if(remaining===0)finish()}
+function round(x,y,w,h,r,c){ctx.fillStyle=c;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill()}
+function text(t,x,y,size,color,align='center'){ctx.fillStyle=color;ctx.font=`${size}px system-ui,sans-serif`;ctx.textAlign=align;ctx.fillText(t,x,y)}
+function person(x,y,color,hair='#4a3444',label=''){ctx.fillStyle='#6b456922';ctx.beginPath();ctx.ellipse(x,y+24,23,7,0,0,Math.PI*2);ctx.fill();round(x-12,y+2,9,22,4,'#493d57');round(x+3,y+2,9,22,4,'#493d57');round(x-20,y-29,40,39,12,color);round(x-20,y-65,40,39,16,hair);round(x-16,y-55,32,30,13,'#f7c5aa');round(x-17,y-62,34,12,7,hair);ctx.fillStyle='#493349';ctx.beginPath();ctx.arc(x-6,y-43,2,0,7);ctx.arc(x+6,y-43,2,0,7);ctx.fill();text('⌣',x,y-32,12,'#aa5970');if(label)text(label,x,y+43,12,'#5d3d61')}
+function draw(){ctx.clearRect(0,0,600,440);const bg=ctx.createLinearGradient(0,0,0,440);bg.addColorStop(0,'#f5dce0');bg.addColorStop(1,'#ddc5d9');ctx.fillStyle=bg;ctx.fillRect(0,0,600,440);
+round(20,32,560,116,14,'#f9e8e5');for(let i=0;i<7;i++){round(35+i*80,43,65,70,5,i%2?'#d8bed9':'#b7c6d2');round(40+i*80,48,55,59,4,'#ebd9e0')}
+ctx.strokeStyle='#98748b';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,13);ctx.quadraticCurveTo(300,90,600,13);ctx.stroke();for(let i=0;i<12;i++){const x=i*54,y=13+36*(1-Math.pow((x-300)/300,2));ctx.fillStyle=i%2?'#b396ce':'#ed9fb5';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+22,y+3);ctx.lineTo(x+10,y+23);ctx.fill()}
+round(207,85,186,36,9,'#fff4e9');text('♡  HEART FESTIVAL  ♡',300,108,14,'#996078');ctx.fillStyle='#c4a9c5';ctx.fillRect(0,166,600,2);for(let y=280;y<440;y+=64){ctx.fillStyle='#c5a9c355';ctx.fillRect(0,y,600,1)}
+round(20,355,93,52,8,'#e3a8b7');round(15,350,103,13,4,'#fff0df');text('心動小舖',66,384,14,'#825069');round(490,355,90,52,8,'#b9a5cf');round(485,350,100,13,4,'#fff0df');text('花與告白',535,384,14,'#705580');
+const rx=300+Math.sin(elapsed*.65)*225;person(rx,150,'#9b71bc','#534063','對手');
+for(const p of people){if(p===selected){ctx.strokeStyle='#d95a91';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(p.x,p.y+24,29,10,0,0,7);ctx.stroke()}person(p.x,p.y,p.color,'#51424e',p.name);round(p.x-26,p.y-83,52,6,3,'#fff4ed');round(p.x-26,p.y-83,Math.max(.1,p.progress*.52),6,3,'#e66d9b');if(p.rival>0){round(p.x-26,p.y-92,52,4,2,'#fff4ed');round(p.x-26,p.y-92,p.rival*.52,4,2,'#9864bd')}}
+person(player,337,'#ed83a8','#613a53','你');
+if(state==='playing'&&selected&&Math.abs(selected.x-player)<190&&!exhausted){ctx.strokeStyle='#e867a49a';ctx.lineWidth=3;ctx.setLineDash([7,7]);ctx.lineDashOffset=-elapsed*30;ctx.beginPath();ctx.moveTo(player,290);ctx.lineTo(selected.x,selected.y-40);ctx.stroke();ctx.setLineDash([]);const t=(elapsed*1.5)%1;text('♥',player+(selected.x-player)*t,290+(selected.y-40-290)*t,24,'#db518e')}
+for(const p of particles){ctx.globalAlpha=Math.min(1,p.life);text(p.text,p.x,p.y,19,p.color)}ctx.globalAlpha=1;text('長按人物  ·  靠近才能心動',300,422,11,'#8a658a')}
+populate();let last=performance.now();function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;step(dt);draw();requestAnimationFrame(frame)}requestAnimationFrame(frame);
+</script></body></html>
